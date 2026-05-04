@@ -104,11 +104,32 @@ with col_pie2:
     fig_p2.update_traces(textinfo='percent+label')
     st.plotly_chart(fig_p2, use_container_width=True)
 
-# 9. TABLA RESUMEN POR DEPARTAMENTO
+#9. TABLA RESUMEN POR DEPARTAMENTO
 st.markdown("### Resumen Detallado por Departamento")
-tabla = df_filt.groupby('departamento').agg(
+
+# Creamos el resumen agrupado
+tabla_resumen = df_filt.groupby('departamento').agg(
     Total_Productores=('productor_id', 'count'),
     Total_Hectareas=('area_ha', 'sum'),
     Promedio_Area_Ha=('area_ha', 'mean')
 ).reset_index()
-st.table(tabla.style.format({'Total_Hectareas': '{:,.2f}', 'Promedio_Area_Ha': '{:,.2f}'}))
+
+# Calculamos el porcentaje de productores sobre el total filtrado
+total_p = tabla_resumen['Total_Productores'].sum()
+tabla_resumen['% Productores'] = (tabla_resumen['Total_Productores'] / total_p * 100).round(2)
+
+# --- AQUÍ CAMBIAMOS LOS NOMBRES DE LAS COLUMNAS ---
+tabla_resumen.columns = [
+    'Departamento', 
+    'Total Productores', 
+    'Total Hectáreas', 
+    'Promedio de area_ha', 
+    '% Productores'
+]
+
+# Mostramos la tabla con formato profesional
+st.table(tabla_resumen.style.format({
+    'Total Hectáreas': '{:,.2f}',
+    'Promedio de area_ha': '{:,.2f}',
+    '% Productores': '{:.2f}%'
+}))
