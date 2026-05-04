@@ -76,13 +76,13 @@ st.markdown("---")
 col_bar1, col_bar2 = st.columns(2)
 
 with col_bar1:
-    st.subheader("Productividad por cadena_productiva")
+    st.subheader("Productividad por Cadena Productiva")
     prod_cadena = df_filt.groupby('cadena_productiva')['area_ha'].sum().reset_index()
     fig_h = px.bar(prod_cadena, y='cadena_productiva', x='area_ha', orientation='h', color_discrete_sequence=[COLOR_GENERIC])
     st.plotly_chart(fig_h, use_container_width=True)
 
 with col_bar2:
-    st.subheader("Promedio de ingresos por certificación")
+    st.subheader("Promedio de Ingresos por Certificación")
     ing_cert = df_filt.groupby('estado_certificacion')['ingresos_anuales_cop'].mean().reset_index()
     fig_v = px.bar(ing_cert, x='estado_certificacion', y='ingresos_anuales_cop', color_discrete_sequence=[COLOR_GENERIC])
     st.plotly_chart(fig_v, use_container_width=True)
@@ -93,13 +93,13 @@ col_pie1, col_pie2 = st.columns(2)
 color_map = {"Cafe": COLOR_CAFE, "Palma De Aceite": COLOR_PALMA, "Cacao": COLOR_CACAO}
 
 with col_pie1:
-    st.subheader("% Hectáreas por cadena productiva")
+    st.subheader("% Hectáreas por Cadena Productiva")
     fig_p1 = px.pie(df_filt, values='area_ha', names='cadena_productiva', color='cadena_productiva', color_discrete_map=color_map)
     fig_p1.update_traces(textinfo='percent+label')
     st.plotly_chart(fig_p1, use_container_width=True)
 
 with col_pie2:
-    st.subheader("% Productores por cadena productiva")
+    st.subheader("% Productores por Cadena Productiva")
     fig_p2 = px.pie(df_filt, names='cadena_productiva', color='cadena_productiva', color_discrete_map=color_map)
     fig_p2.update_traces(textinfo='percent+label')
     st.plotly_chart(fig_p2, use_container_width=True)
