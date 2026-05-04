@@ -4,107 +4,120 @@ import plotly.express as px
 import os
 
 # 1. CONFIGURACIÓN DE LA PÁGINA
-st.set_page_config(
-    page_title="Dashboard Solidaridad - Análisis 2026",
-    page_icon="🌱",
-    layout="wide"
-)
+st.set_page_config(layout="wide", page_title="Dashboard Solidaridad")
 
-# Estilo para el título
-st.markdown("""
-    <style>
-    .main-title { font-size:36px !important; font-weight: bold; color: #0072CE; }
-    </style>
-    """, unsafe_allow_html=True)
+# Colores institucionales (Basado en imagen 5)
+COLOR_PALMA = "#55A630" # Verde
+COLOR_CAFE = "#2B3A67"  # Azul oscuro
+COLOR_CACAO = "#A68A20" # Dorado/Café
+COLOR_GENERIC = "#55A630" # Verde para barras generales
 
-st.markdown('<p class="main-title">🌱 Dashboard Estratégico: Programa de Productores Aliados</p>', unsafe_allow_html=True)
-st.markdown("---")
-
-# 2. CONEXIÓN CON EL EXCEL (Ruta Relativa para GitHub)
+# 2. CARGA DE DATOS
 @st.cache_data
 def load_data():
-    # Buscamos el archivo en la misma carpeta del script
     file_name = "Base_final.xlsx"
-    
     if not os.path.exists(file_name):
-        st.error(f"No se encontró el archivo {file_name} en el repositorio.")
+        st.error("Archivo Base_final.xlsx no encontrado.")
         st.stop()
-        
     df = pd.read_excel(file_name)
-    
-    # Limpieza y conversión de datos para asegurar el funcionamiento
+    # Limpieza numérica de seguridad
     df['area_ha'] = pd.to_numeric(df['area_ha'], errors='coerce')
+    df['ingresos_anuales_cop'] = pd.to_numeric(df['ingresos_anuales_cop'], errors='coerce')
     df['produccion_kg'] = pd.to_numeric(df['produccion_kg'], errors='coerce')
-    
-    # Retornamos solo registros con coordenadas para el mapa
-    return df.dropna(subset=['latitud', 'longitud', 'area_ha'])
+    return df
 
-try:
-    df = load_data()
-except Exception as e:
-    st.error(f"Error técnico al procesar la base: {e}")
-    st.stop()
+df = load_data()
+
+# TÍTULO PRINCIPAL (Basado en imagen 5)
+st.markdown("<h1 style='text-align: center; color: #0072CE;'>🌱 Dashboard Estratégico: Programa de Productores Aliados</h1>", unsafe_allow_html=True)
 
 # 3. FILTROS LATERALES
-st.sidebar.header("⚙️ Filtros de Análisis")
+st.sidebar.header("Filtros de Análisis")
+deptos = st.sidebar.multiselect("Filtrar por Departamento", options=sorted(df['departamento'].unique()), default=sorted(df['departamento'].unique()))
+df_filt = df[df['departamento'].isin(deptos)]
 
-departamentos = st.sidebar.multiselect(
-    "Seleccione Departamentos:",
-    options=sorted(df['departamento'].unique()),
-    default=sorted(df['departamento'].unique())
-)
-
-cultivos = st.sidebar.multiselect(
-    "Cadena Productiva:",
-    options=df['cadena_productiva'].unique(),
-    default=df['cadena_productiva'].unique()
-)
-
-# Aplicar filtros
-df_filt = df[(df['departamento'].isin(departamentos)) & (df['cadena_productiva'].isin(cultivos))]
-
-# 4. INDICADORES CLAVE (KPIs)
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("Total Productores", f"{len(df_filt)}")
-m2.metric("Total Hectáreas", f"{df_filt['area_ha'].sum():,.1f} ha")
-m3.metric("Producción (Ton)", f"{df_filt['produccion_kg'].sum()/1000:,.1f}")
-m4.metric("Ingreso Promedio", f"${df_filt['ingresos_anuales_cop'].mean():,.0f}")
+# 4. KPIs SUPERIORES (Métricas según imagen 5)
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+with kpi1:
+    st.metric("Total Productores", len(df_filt))
+with kpi2:
+    total_ha = df_filt['area_ha'].sum()
+    st.metric("Total Hectáreas", f"{total_ha/1000:,.2f} mil".replace(",", "."))
+with kpi3:
+    st.metric("Total Departamentos", df_filt['departamento'].nunique())
+with kpi4:
+    st.metric("Total Municipios", df_filt['municipio'].nunique())
 
 st.markdown("---")
 
-# 5. MAPA TERRITORIAL
-st.subheader("📍 Análisis Territorial: Distribución y Escala")
+# 5. BLOQUE DE MAPA (Punto 1.3 Análisis Territorial)
+st.subheader("📍 Análisis Territorial y Localización")
 fig_map = px.scatter_mapbox(
-    df_filt, 
+    df_filt.dropna(subset=['latitud', 'longitud']), 
     lat="latitud", 
     lon="longitud", 
     size="area_ha", 
     color="cadena_productiva",
+    color_discrete_map={"Cafe": COLOR_CAFE, "Palma De Aceite": COLOR_PALMA, "Cacao": COLOR_CACAO},
     hover_name="nombre_completo",
-    hover_data=["municipio", "estado_certificacion"],
-    zoom=5, 
-    height=600
+    zoom=4.5, 
+    height=500
 )
 fig_map.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0})
 st.plotly_chart(fig_map, use_container_width=True)
 
-# 6. GRÁFICOS SECUNDARIOS
 st.markdown("---")
-c1, c2 = st.columns(2)
 
-with c1:
-    st.subheader("📈 Producción por Departamento")
-    fig_prod = px.bar(
-        df_filt.groupby('departamento')['produccion_kg'].sum().reset_index(),
-        x='departamento', 
-        y='produccion_kg',
-        color_discrete_sequence=['#0072CE']
-    )
-    st.plotly_chart(fig_prod, use_container_width=True)
+# 6. FILA DE BARRAS (Productividad e Ingresos según imagen 5)
+col_bar1, col_bar2 = st.columns(2)
 
-with c2:
-    st.subheader("🛡️ Estado de Certificación")
-    fig_pie = px.pie(df_filt, names='estado_certificacion', hole=0.5)
-    st.plotly_chart(fig_pie, use_container_width=True)
+with col_bar1:
+    st.subheader("Productividad por cadena_productiva")
+    prod_cadena = df_filt.groupby('cadena_productiva')['area_ha'].sum().reset_index()
+    fig_h = px.bar(prod_cadena, y='cadena_productiva', x='area_ha', orientation='h',
+                   color_discrete_sequence=[COLOR_GENERIC])
+    fig_h.update_layout(xaxis_title="", yaxis_title="", plot_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig_h, use_container_width=True)
 
-st.caption("Dashboard generado para la Prueba Técnica - Solidaridad Network Colombia.")
+with col_bar2:
+    st.subheader("Promedio de ingresos_anuales_cop por estado_certificacion")
+    ing_cert = df_filt.groupby('estado_certificacion')['ingresos_anuales_cop'].mean().reset_index()
+    fig_v = px.bar(ing_cert, x='estado_certificacion', y='ingresos_anuales_cop',
+                   color_discrete_sequence=[COLOR_GENERIC])
+    fig_v.update_layout(xaxis_title="", yaxis_title="", plot_bgcolor="rgba(0,0,0,0)")
+    st.plotly_chart(fig_v, use_container_width=True)
+
+# 7. FILA DE TORTAS (Distribución % según imagen 5)
+col_pie1, col_pie2 = st.columns(2)
+color_map = {"Cafe": COLOR_CAFE, "Palma De Aceite": COLOR_PALMA, "Cacao": COLOR_CACAO}
+
+with col_pie1:
+    st.subheader("% Hectáreas por cadena productiva")
+    fig_p1 = px.pie(df_filt, values='area_ha', names='cadena_productiva',
+                    color='cadena_productiva', color_discrete_map=color_map)
+    fig_p1.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_p1, use_container_width=True)
+
+with col_pie2:
+    st.subheader("% Productores por cadena productiva")
+    fig_p2 = px.pie(df_filt, names='cadena_productiva',
+                    color='cadena_productiva', color_discrete_map=color_map)
+    fig_p2.update_traces(textinfo='percent+label')
+    st.plotly_chart(fig_p2, use_container_width=True)
+
+# 8. TABLA RESUMEN POR DEPARTAMENTO (Según tabla en imagen 5)
+st.markdown("### Resumen Detallado por Departamento")
+tabla = df_filt.groupby('departamento').agg(
+    Total_Productores=('productor_id', 'count'),
+    Total_Hectareas=('area_ha', 'sum'),
+    Promedio_Area_Ha=('area_ha', 'mean')
+).reset_index()
+
+total_p = tabla['Total_Productores'].sum()
+tabla['% Productores'] = (tabla['Total_Productores'] / total_p * 100).round(2)
+
+st.table(tabla.style.format({
+    'Total_Hectareas': '{:,.2f}',
+    'Promedio_Area_Ha': '{:,.2f}',
+    '% Productores': '{:.2f}%'
+}))
